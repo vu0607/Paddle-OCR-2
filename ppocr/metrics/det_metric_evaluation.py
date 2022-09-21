@@ -113,8 +113,8 @@ class DetMetricEvaluation(object):
         green = (0, 255, 0)
         tp_box = [pair['det'] for pair in pairs]
         tp_gt_box = [pair['gt'] for pair in pairs]
-        texts = [texts[i] for i in tp_gt_box]
-        kie_classes = [kie_classes[i] for i in tp_gt_box]
+        # texts = [texts[i] for i in tp_gt_box]
+        # kie_classes = [kie_classes[i] for i in tp_gt_box]
         iou_box = [round(iou_mat[pair['gt']][pair['det']], 2) for pair in pairs]
         for i, box in enumerate(pred_polygon):
             points = np.asarray(box, dtype=np.float32)
@@ -125,15 +125,15 @@ class DetMetricEvaluation(object):
 
                 gt_index = tp_box.index(i)
 
-                kie_class = kie_classes[gt_index]
-                text = texts[gt_index]
+                # kie_class = kie_classes[gt_index]
+                # text = texts[gt_index]
 
                 base_name = os.path.basename(file_name)
                 name, ext = os.path.splitext(base_name)
-                save_name = "_".join([kie_class, name, str(uuid.uuid4())]) + ext
-
-                assert cv2.imwrite(os.path.join(self.save_instances_dir, save_name), crop_img)
-                self.f_out.write(f"{save_name}\t{text}\n")
+                # save_name = "_".join([kie_class, name, str(uuid.uuid4())]) + ext
+                #
+                # assert cv2.imwrite(os.path.join(self.save_instances_dir, save_name), crop_img)
+                # self.f_out.write(f"{save_name}\t{text}\n")
 
                 cv2.polylines(draw_img, [box], True, color=green, thickness=1)
                 cv2.putText(draw_img, str(iou_box[tp_box.index(i)]), tuple(box[0, 0]), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
