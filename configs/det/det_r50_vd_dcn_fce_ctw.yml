@@ -1,0 +1,144 @@
+Global:
+  use_gpu: true
+  epoch_num: 2
+  log_smooth_window: 1
+  print_batch_step: 1
+  save_model_dir: /home/vudangitwork/Documents/FTECH/paddle-ocr/vudn/save_model
+  save_epoch_step: 2
+  # evaluation is run every 2 iterations
+  eval_batch_step: [0, 2]
+  cal_metric_during_train: False
+  pretrained_model: /home/vudangitwork/Documents/FTECH/paddle-ocr/vudn/pretrain_models/ResNet50_vd_ssld_pretrained
+  checkpoints:
+  save_inference_dir: /home/vudangitwork/Documents/FTECH/paddle-ocr/vudn/train_data
+  use_visualdl: False
+  infer_img: /home/vudangitwork/Documents/FTECH/paddle-ocr/vudn/cmnd.jpg
+  save_res_path: ./train_data
+
+
+Architecture:
+  model_type: det
+  algorithm: FCE
+  Transform:
+  Backbone:
+    name: ResNet
+    layers: 50
+    dcn_stage: [False, True, True, True]
+    out_indices: [1,2,3]
+  Neck:
+    name: FCEFPN
+    out_channels: 256
+    has_extra_convs: False
+    extra_stage: 0
+  Head:
+    name: FCEHead
+    fourier_degree: 7
+Loss:
+  name: FCELoss
+  fourier_degree: 7
+  num_sample: 50
+  
+Optimizer:
+  name: Adam
+  beta1: 0.9
+  beta2: 0.999
+  lr:
+    learning_rate: 0.0001
+  regularizer:
+    name: 'L2'
+    factor: 0
+
+PostProcess:
+  name: FCEPostProcess
+  scales: [8, 16, 32]
+  alpha: 1.0
+  beta: 1.0
+  fourier_degree: 7
+  box_type: 'quad'
+
+Metric:
+  name: DetFCEMetric
+  main_indicator: hmean
+
+Train:
+  dataset:
+    name: SimpleDataSet
+    data_dir: /home/vudangitwork/Documents/FTECH/paddle-ocr/vudn/dataset
+    label_file_list: 
+      - /home/vudangitwork/Documents/FTECH/paddle-ocr/vudn/dataset/train.txt
+    transforms:
+      - DecodeImage: # load image
+          img_mode: BGR
+          channel_first: False
+          ignore_orientation: True
+      - DetLabelEncode: # Class handling label
+      - ColorJitter: 
+          brightness: 0.142
+          saturation: 0.5
+          contrast: 0.5
+      - RandomScaling: 
+      - RandomCropFlip:
+          crop_ratio: 0.5
+      - RandomCropPolyInstances:
+          crop_ratio: 0.8
+          min_side_ratio: 0.3
+      - RandomRotatePolyInstances:
+          rotate_ratio: 0.5
+          max_angle: 30
+          pad_with_fixed_color: False
+      - SquareResizePad:
+          target_size: 800
+          pad_ratio: 0.6
+      - IaaAugment:
+          augmenter_args:
+            - { 'type': Fliplr, 'args': { 'p': 0.25 } }
+            - { 'type': Affine, 'args': { 'rotate': [-10, 10] } }
+            - { 'type': MotionBlur, 'args': { 'k': [5, 11], 'angle': [0, 360] } }
+            - { 'type': GaussianBlur, 'args': { 'sigma': [0.5, 2.5] } }
+            - { 'type': GammaContrast, 'args': { 'gamma': [0.5, 2.5] , 'per_channel': True } }
+      - FCENetTargets:
+          fourier_degree: 7
+      - NormalizeImage:
+          scale: 1./255.
+          mean: [0.485, 0.456, 0.406]
+          std: [0.229, 0.224, 0.225]
+          order: 'hwc'
+      - ToCHWImage:
+      - KeepKeys:
+          keep_keys: ['image', 'p3_maps', 'p4_maps', 'p5_maps'] # dataloader will return list in this order
+  loader:
+    shuffle: True
+    drop_last: False
+    batch_size_per_card: 1
+    num_workers: 1
+
+Eval:
+  dataset:
+    name: SimpleDataSet
+    data_dir: /home/vudangitwork/Documents/FTECH/paddle-ocr/vudn/dataset
+    label_file_list:
+      - /home/vudangitwork/Documents/FTECH/paddle-ocr/vudn/dataset/test.txt
+    transforms:
+      - DecodeImage: # load image
+          img_mode: BGR
+          channel_first: False
+          ignore_orientation: True
+      - DetLabelEncode: # Class handling label
+      - DetResizeForTest:
+          limit_type: 'min'
+          limit_side_len: 736
+      - NormalizeImage:
+          scale: 1./255.
+          mean: [0.485, 0.456, 0.406]
+          std: [0.229, 0.224, 0.225]
+          order: 'hwc'
+      - Pad: 
+      - ToCHWImage:
+      - KeepKeys:
+          keep_keys: ['image', 'shape', 'polys', 'ignore_tags']
+  loader:
+    shuffle: False
+    drop_last: False
+    batch_size_per_card: 1 # must be 1
+    num_workers: 1
+
